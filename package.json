@@ -6,7 +6,8 @@
   "description": "Bot de atendimento do DAES para WhatsApp Business, rodando localmente (whatsapp-web.js)",
   "scripts": {
     "start": "node --env-file=.env src/index.js",
-    "test": "node test/bot.test.js"
+    "test": "node test/bot.test.js && node test/llm.test.js",
+    "check-ia": "node --env-file=.env scripts/check-ia.js"
   },
   "engines": {
     "node": ">=20.6"
