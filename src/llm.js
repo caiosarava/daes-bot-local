@@ -21,7 +21,7 @@ export const nvidiaConfig = () => ({
   key: process.env.NVIDIA_API_KEY,
   // Lista de modelos em ordem de preferência: se o primeiro falhar, tenta o próximo.
   models: (process.env.NVIDIA_MODELS || DEFAULT_MODELS).split(',').map((s) => s.trim()).filter(Boolean),
-  timeoutMs: (Number(process.env.NVIDIA_TIMEOUT_SECONDS) || 30) * 1000,
+  timeoutMs: (Number(process.env.NVIDIA_TIMEOUT_SECONDS) || 30) * 6000,
 });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -34,7 +34,7 @@ async function callModel({ baseUrl, key, timeoutMs }, model, messages) {
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) {
-    const err = new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const err = new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 600)}`);
     err.status = res.status;
     throw err;
   }
