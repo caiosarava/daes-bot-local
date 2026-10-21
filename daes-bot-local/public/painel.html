@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel do bot DAES</title>
+  <style>
+    :root { --bg:#f4f6f8; --card:#fff; --text:#1f2933; --muted:#667085; --ok:#16a34a; --off:#dc2626; --line:#e4e7ec; --accent:#2563eb; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#12161b; --card:#1b2129; --text:#e6e9ee; --muted:#98a2b3; --line:#2b333d; } }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); padding:1rem; }
+    main { max-width: 640px; margin: 0 auto; display: grid; gap: 1rem; }
+    section { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:1rem; }
+    h1 { font-size:1.2rem; margin:.2rem 0 0; } h2 { font-size:1rem; margin:0 0 .6rem; }
+    .row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+    .grow { flex:1; }
+    .dot { width:10px; height:10px; border-radius:50%; background:var(--off); display:inline-block; }
+    .dot.on { background:var(--ok); }
+    button { border:0; border-radius:8px; padding:.55rem .9rem; font:inherit; cursor:pointer; background:var(--accent); color:#fff; }
+    button.gray { background:var(--muted); } button.red { background:var(--off); } button.green { background:var(--ok); }
+    input { font:inherit; padding:.5rem; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); }
+    ul { list-style:none; padding:0; margin:0; } li { display:flex; justify-content:space-between; gap:.5rem; align-items:center; padding:.45rem 0; border-top:1px solid var(--line); }
+    li:first-child { border-top:0; } .muted { color:var(--muted); font-size:.9rem; }
+  </style>
+</head>
+<body>
+<main>
+  <header><h1>Painel do bot DAES</h1><div class="muted">Acessível só neste computador</div></header>
+
+  <section>
+    <h2>Situação</h2>
+    <div class="row">
+      <span><span id="dotWa" class="dot"></span> WhatsApp <b id="wa">…</b></span>
+      <span class="grow"></span>
+      <span><span id="dotBot" class="dot"></span> Bot <b id="bot">…</b></span>
+      <button id="toggle">…</button>
+    </div>
+    <p class="muted" id="info"></p>
+  </section>
+
+  <section>
+    <h2>Pausas ativas</h2>
+    <ul id="pauses"></ul>
+    <p class="muted" id="nopauses">Nenhuma conversa pausada.</p>
+  </section>
+
+  <section>
+    <h2>Pausar um contato</h2>
+    <div class="row">
+      <input id="to" class="grow" placeholder="5516999999999" inputmode="numeric">
+      <input id="min" type="number" value="5" min="1" style="width:5rem" aria-label="minutos">
+      <button id="pause">Pausar</button>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  let enabled = true;
+
+  async function refresh() {
+    try {
+      const s = await (await fetch('/api/state')).json();
+      enabled = s.enabled;
+      $('wa').textContent = s.ready ? 'conectado' : 'desconectado';
+      $('dotWa').className = 'dot' + (s.ready ? ' on' : '');
+      $('bot').textContent = enabled ? 'ligado' : 'desligado';
+      $('dotBot').className = 'dot' + (enabled ? ' on' : '');
+      $('toggle').textContent = enabled ? 'Desligar bot' : 'Ligar bot';
+      $('toggle').className = enabled ? 'red' : 'green';
+      $('info').textContent = s.chats + ' conversa(s) na memória.';
+      const ul = $('pauses'); ul.innerHTML = '';
+      $('nopauses').style.display = s.pauses.length ? 'none' : '';
+      for (const p of s.pauses) {
+        const li = document.createElement('li');
+        const num = p.chat.replace(/@.*/, '');
+        const m = Math.floor(p.secondsLeft / 60), sec = String(p.secondsLeft % 60).padStart(2, '0');
+        li.innerHTML = '<span></span><span class="row"><span class="muted"></span><button class="gray">Retomar</button></span>';
+        li.querySelector('span').textContent = num;
+        li.querySelector('.muted').textContent = m + ':' + sec;
+        li.querySelector('button').onclick = async () => { await post('/api/resume', { to: p.chat }); refresh(); };
+        ul.appendChild(li);
+      }
+    } catch { $('wa').textContent = 'sem resposta'; }
+  }
+
+  $('toggle').onclick = async () => { await post('/api/enabled', { enabled: !enabled }); refresh(); };
+  $('pause').onclick = async () => {
+    if (!$('to').value.trim()) return;
+    await post('/api/pause', { to: $('to').value, minutes: $('min').value });
+    $('to').value = ''; refresh();
+  };
+  refresh(); setInterval(refresh, 5000);
+</script>
+</body>
+</html>
